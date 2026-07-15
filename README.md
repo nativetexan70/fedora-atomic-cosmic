@@ -76,28 +76,29 @@ already-running services have the old config cached in memory — restarting the
 avoids needing a reboot before authentication works, though a reboot may still be required
 in some cases.
 
-### IPA accounts not showing on the COSMIC login screen
+### IPA accounts at the login screen
 
-`cosmic-greeter` lists login-screen users via NSS/passwd enumeration — unlike GDM, which can
-show a manually-typed username without needing a directory listing. SSSD has enumeration off
-by default for IPA/AD domains (it's expensive against a large directory), so enrolled IPA
-accounts silently don't appear on the greeter even though logging in by typing the username
-still works. `ujust ipa-enroll` sets `enumerate = True` in the domain's `sssd.conf` section
-automatically; doing it by hand looks like:
+With GDM (this image's default login manager), you don't need IPA accounts to appear in a
+list — GDM accepts any typed username and forwards it to PAM/SSSD, so IPA users can log in
+simply by typing their username at the login screen.
+
+`ujust ipa-enroll` still sets `enumerate = True` in `sssd.conf` as a convenience for anyone
+who switches back to `cosmic-greeter` via `ujust toggle-login-manager` — that greeter uses
+NSS enumeration to build its user list and accounts don't appear there without it. To enable
+enumeration manually:
 
 ```bash
 sudo sed -i "/^\[domain\/YOUR.DOMAIN\]/a enumerate = True" /etc/sssd/sssd.conf
 sudo systemctl restart sssd
 ```
 
-This is fine for a small IPA deployment, but full enumeration means SSSD periodically syncs
-the entire directory into its local cache — on a large corporate directory that adds real
-load, so treat it as a deliberate choice rather than a default for production environments.
+Full enumeration means SSSD periodically syncs the entire directory into its local cache —
+fine for a small IPA deployment but adds real load on a large corporate directory. If you are
+on a large directory and not using `cosmic-greeter`, there is no reason to enable it.
 
-If accounts still don't show after enabling enumeration, check your IPA server's assigned
-UID range (`ipa idrange-show`) — FreeIPA often auto-assigns UID ranges in the billions to
-avoid cross-domain collisions, which can fall outside whatever "human user" range a greeter
-filters to.
+If authentication fails after enrollment (lock screen or `sudo`), check that `sssd` is running
+(`systemctl status sssd`) and the IPA server is reachable. A reboot after initial enrollment
+is sometimes needed if services didn't pick up the new config.
 
 ### Why GDM instead of cosmic-greeter
 
