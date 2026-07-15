@@ -3,7 +3,8 @@
 A custom [Fedora Atomic (bootc)](https://docs.fedoraproject.org/en-US/bootc/) image
 based on the official **Fedora COSMIC Atomic** desktop, with:
 
-- **COSMIC desktop** — from the `quay.io/fedora/fedora-cosmic-atomic` base image
+- **COSMIC desktop** — from the `quay.io/fedora-ostree-desktops/cosmic-atomic`
+  base image
 - **FreeIPA client** — `freeipa-client`, `krb5-workstation`, and
   `oddjob-mkhomedir` baked in, ready for domain enrollment
 - **Homebrew for all users** — installed at image build time and unpacked to
@@ -11,6 +12,20 @@ based on the official **Fedora COSMIC Atomic** desktop, with:
   snippet) put `brew` on every user's PATH
 - **Distrobox** — available to all users for mutable container distros
 - **Flathub** — configured as a system-wide flatpak remote at image build time
+- **RPM Fusion (free + nonfree)** — full `ffmpeg` and hardware video
+  acceleration (`mesa-*-freeworld`) instead of the patent-limited defaults
+- **Container registry shortnames** — `docker.io`/`ghcr.io`/`quay.io` are
+  pre-configured as unqualified-search registries for Podman/Distrobox
+- **Automatic staged updates** — `rpm-ostreed-automatic.timer` is enabled with
+  `AutomaticUpdatePolicy=stage`, so machines pick up new image builds without
+  a manual `bootc upgrade`
+- **LAN discovery + printing** — `avahi`/`nss-mdns`, `cups` + `cups-browsed`,
+  and `firewalld`'s default zone set to `FedoraWorkstation`
+- **Tailscale** — repo + package installed and `tailscaled` enabled; run
+  `tailscale up` after first boot to authenticate
+- **Developer defaults** — JetBrains Mono / Fira Code fonts, `init.defaultBranch
+  = main` in `/etc/gitconfig`, and SSH keepalive tuning in
+  `/etc/ssh/ssh_config.d/`
 
 The image is built weekly (and on every push to `main`) by GitHub Actions and
 published to GHCR.
@@ -61,5 +76,5 @@ podman build -t fedora-atomic-cosmic .
 |---|---|
 | `Containerfile` | Image definition (base image + overlays + build script) |
 | `build_files/build.sh` | Package installs, Homebrew packaging, service enablement |
-| `system_files/` | Files overlaid onto `/` (systemd units, profile scripts, helpers) |
+| `system_files/` | Files overlaid onto `/` (systemd units, profile scripts, helpers, `/etc` defaults) |
 | `.github/workflows/build.yml` | CI build and push to GHCR |

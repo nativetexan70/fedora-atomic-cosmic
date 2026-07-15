@@ -9,18 +9,47 @@ set -euxo pipefail
 # don't choke on a dangling symlink during the build.
 mkdir -p /var/roothome
 
+### RPM Fusion ##################################################################
+# Free + nonfree repos for patent-encumbered codecs and hardware video accel
+# drivers - the single most common manual step on any Fedora desktop.
+dnf -y install \
+    "https://mirrors.rpmfusion.org/free/fedora/rpmfusion-free-release-$(rpm -E %fedora).noarch.rpm" \
+    "https://mirrors.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-$(rpm -E %fedora).noarch.rpm"
+
+### Tailscale repo ##############################################################
+curl -fsSL https://pkgs.tailscale.com/stable/fedora/tailscale.repo \
+    -o /etc/yum.repos.d/tailscale.repo
+
 ### Layered packages ##########################################################
 # - freeipa-client / krb5-workstation / oddjob-mkhomedir: FreeIPA enrollment
 #   support (run `ipa-client-install --mkhomedir` on a deployed machine)
 # - distrobox: mutable container distros for every user
 # - git-core / zstd: needed to install and package Homebrew below
-dnf -y install \
+# - ffmpeg / mesa-*-freeworld: full RPM Fusion codec + hardware video accel
+#   (replaces the patent-limited *-free builds shipped by default)
+# - firewalld / avahi / nss-mdns / cups*: LAN discovery and network printing
+# - tailscale: VPN mesh client (service enabled below; run `tailscale up`
+#   after first boot to authenticate against your tailnet)
+# - jetbrains-mono-fonts / fira-code-fonts: monospace coding fonts
+dnf -y install --allowerasing \
     distrobox \
     freeipa-client \
     krb5-workstation \
     oddjob-mkhomedir \
     git-core \
-    zstd
+    zstd \
+    ffmpeg \
+    mesa-va-drivers-freeworld \
+    mesa-vdpau-drivers-freeworld \
+    firewalld \
+    avahi \
+    nss-mdns \
+    cups \
+    cups-filters \
+    cups-browsed \
+    tailscale \
+    jetbrains-mono-fonts \
+    fira-code-fonts
 
 ### Homebrew ##################################################################
 # Homebrew cannot live in the immutable /usr tree, so install it at build
@@ -43,11 +72,24 @@ rm -rf /.dockerenv /tmp/brew-install.sh /var/home/linuxbrew
 flatpak remote-add --system --if-not-exists flathub \
     https://dl.flathub.org/repo/flathub.flatpakrepo
 
+### Firewalld default zone #####################################################
+# firewall-offline-cmd edits the on-disk zone config directly (no running
+# daemon needed during the build). FedoraWorkstation is the zone Fedora
+# Workstation itself uses: it permits mDNS/DNS-SD, SMB client, and SSH -
+# the profile an actual desktop machine wants.
+firewall-offline-cmd --set-default-zone=FedoraWorkstation
+
 ### Helper scripts and services ###############################################
 chmod 0755 /usr/libexec/brew-setup.sh
 systemctl enable \
     brew-setup.service \
-    oddjobd.service
+    oddjobd.service \
+    firewalld.service \
+    avahi-daemon.service \
+    cups.service \
+    cups-browsed.service \
+    tailscaled.service \
+    rpm-ostreed-automatic.timer
 
 ### Cleanup ###################################################################
 dnf clean all
