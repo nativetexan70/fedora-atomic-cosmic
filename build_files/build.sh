@@ -1,7 +1,13 @@
 #!/usr/bin/env bash
 # Build script for the fedora-atomic-cosmic image.
-# Runs inside the container build on top of quay.io/fedora/fedora-cosmic-atomic.
+# Runs inside the container build on top of quay.io/fedora-ostree-desktops/cosmic-atomic.
 set -euxo pipefail
+
+# On Fedora Atomic, /root and /home are symlinks into /var (roothome, home),
+# which only get populated at first boot. Create the roothome target now so
+# tools that write under $HOME (e.g. the Homebrew installer's cache dir)
+# don't choke on a dangling symlink during the build.
+mkdir -p /var/roothome
 
 ### Layered packages ##########################################################
 # - freeipa-client / krb5-workstation / oddjob-mkhomedir: FreeIPA enrollment
