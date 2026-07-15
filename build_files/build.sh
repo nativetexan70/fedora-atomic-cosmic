@@ -20,19 +20,24 @@ dnf -y install \
 curl -fsSL https://pkgs.tailscale.com/stable/fedora/tailscale.repo \
     -o /etc/yum.repos.d/tailscale.repo
 
-### Universal Blue packages repo ################################################
-# Provides ujust/ugum and the composable /usr/share/ublue-os/just/*.just
-# recipe mechanism (our own recipes live in 60-custom.just below).
+### COPR repos ###################################################################
+# - ublue-os/packages: ujust/ugum and the composable
+#   /usr/share/ublue-os/just/*.just recipe mechanism (our recipes live in
+#   60-custom.just below)
+# - atim/starship: starship was removed from Fedora's official repos at F37,
+#   this is the community-maintained COPR build used ever since
 dnf -y install dnf5-plugins
 dnf -y copr enable ublue-os/packages
+dnf -y copr enable atim/starship
 
 ### Layered packages ##########################################################
 # - freeipa-client / krb5-workstation / oddjob-mkhomedir: FreeIPA enrollment
 #   support (run `ipa-client-install --mkhomedir` on a deployed machine)
 # - distrobox: mutable container distros for every user
 # - git-core / zstd: needed to install and package Homebrew below
-# - ffmpeg / mesa-*-freeworld: full RPM Fusion codec + hardware video accel
-#   (replaces the patent-limited *-free builds shipped by default)
+# - ffmpeg / mesa-va-drivers-freeworld: full RPM Fusion codec + hardware
+#   video accel (replaces the patent-limited *-free builds shipped by
+#   default; there's no separate freeworld VDPAU package on Fedora 44)
 # - intel-media-driver / libva-intel-driver / libva-utils: VA-API (DRM)
 #   hardware video decode/encode for Intel integrated graphics - iHD driver
 #   for Broadwell (2014) and newer, legacy i965 driver for older chips
@@ -55,7 +60,6 @@ dnf -y install --allowerasing \
     zstd \
     ffmpeg \
     mesa-va-drivers-freeworld \
-    mesa-vdpau-drivers-freeworld \
     intel-media-driver \
     libva-intel-driver \
     libva-utils \
