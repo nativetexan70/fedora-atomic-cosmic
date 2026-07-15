@@ -27,6 +27,9 @@ curl -fsSL https://pkgs.tailscale.com/stable/fedora/tailscale.repo \
 # - git-core / zstd: needed to install and package Homebrew below
 # - ffmpeg / mesa-*-freeworld: full RPM Fusion codec + hardware video accel
 #   (replaces the patent-limited *-free builds shipped by default)
+# - intel-media-driver / libva-intel-driver / libva-utils: VA-API (DRM)
+#   hardware video decode/encode for Intel integrated graphics - iHD driver
+#   for Broadwell (2014) and newer, legacy i965 driver for older chips
 # - firewalld / avahi / nss-mdns / cups*: LAN discovery and network printing
 # - tailscale: VPN mesh client (service enabled below; run `tailscale up`
 #   after first boot to authenticate against your tailnet)
@@ -41,6 +44,9 @@ dnf -y install --allowerasing \
     ffmpeg \
     mesa-va-drivers-freeworld \
     mesa-vdpau-drivers-freeworld \
+    intel-media-driver \
+    libva-intel-driver \
+    libva-utils \
     firewalld \
     avahi \
     nss-mdns \

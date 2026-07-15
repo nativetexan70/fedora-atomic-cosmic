@@ -14,6 +14,9 @@ based on the official **Fedora COSMIC Atomic** desktop, with:
 - **Flathub** — configured as a system-wide flatpak remote at image build time
 - **RPM Fusion (free + nonfree)** — full `ffmpeg` and hardware video
   acceleration (`mesa-*-freeworld`) instead of the patent-limited defaults
+- **Intel integrated graphics** — `intel-media-driver` (Broadwell/2014+) and
+  `libva-intel-driver` (legacy) for VA-API hardware video decode/encode
+  through the kernel DRM stack, plus `libva-utils` (`vainfo`) for diagnostics
 - **Container registry shortnames** — `docker.io`/`ghcr.io`/`quay.io` are
   pre-configured as unqualified-search registries for Podman/Distrobox
 - **Automatic staged updates** — `rpm-ostreed-automatic.timer` is enabled with
