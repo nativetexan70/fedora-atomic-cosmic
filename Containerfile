@@ -1,6 +1,6 @@
-ARG FEDORA_VERSION=42
+ARG FEDORA_VERSION=44
 
-FROM quay.io/fedora/fedora-cosmic-atomic:${FEDORA_VERSION}
+FROM quay.io/fedora-ostree-desktops/cosmic-atomic:${FEDORA_VERSION}
 
 # Overlay static system files (systemd units, profile scripts, helpers)
 COPY system_files/ /
