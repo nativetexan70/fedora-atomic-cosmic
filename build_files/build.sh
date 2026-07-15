@@ -12,9 +12,23 @@ mkdir -p /var/roothome
 ### RPM Fusion ##################################################################
 # Free + nonfree repos for patent-encumbered codecs and hardware video accel
 # drivers - the single most common manual step on any Fedora desktop.
-dnf -y install \
+#
+# CI has repeatedly hit individual RPM Fusion mirrors timing out or failing
+# DNS resolution (mirrors.rpmfusion.org is a redirector that hands out a
+# mirror per request - a bad one can make dnf's own retry-across-mirrors
+# exhaust its attempts). curl --retry re-queries the redirector fresh on each
+# attempt, so it can land on a different, working mirror instead.
+# --max-time bounds each attempt's total wall-clock time (not just connect
+# time) - a mirror that accepts the connection but drips data arbitrarily
+# slowly would otherwise hang well past what --connect-timeout catches.
+curl --retry 5 --retry-all-errors --retry-delay 3 --connect-timeout 15 --max-time 40 -fsSL \
     "https://mirrors.rpmfusion.org/free/fedora/rpmfusion-free-release-$(rpm -E %fedora).noarch.rpm" \
-    "https://mirrors.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-$(rpm -E %fedora).noarch.rpm"
+    -o /tmp/rpmfusion-free-release.rpm
+curl --retry 5 --retry-all-errors --retry-delay 3 --connect-timeout 15 --max-time 40 -fsSL \
+    "https://mirrors.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-$(rpm -E %fedora).noarch.rpm" \
+    -o /tmp/rpmfusion-nonfree-release.rpm
+dnf -y install /tmp/rpmfusion-free-release.rpm /tmp/rpmfusion-nonfree-release.rpm
+rm -f /tmp/rpmfusion-free-release.rpm /tmp/rpmfusion-nonfree-release.rpm
 
 ### Tailscale repo ##############################################################
 curl -fsSL https://pkgs.tailscale.com/stable/fedora/tailscale.repo \
@@ -92,11 +106,13 @@ tar --zstd -cf /usr/share/homebrew.tar.zst -C /var/home linuxbrew
 rm -rf /.dockerenv /tmp/brew-install.sh /var/home/linuxbrew
 
 ### Flatpak ####################################################################
-# /etc is part of the ostree commit (and 3-way merged on every deployment), so
-# a remote added here is present for every user on first login with no
-# first-boot service needed.
-flatpak remote-add --system --if-not-exists flathub \
-    https://dl.flathub.org/repo/flathub.flatpakrepo
+# Deliberately NOT `flatpak remote-add` here: unlike /etc, /var is excluded
+# from the ostree commit entirely (treated like a Docker VOLUME - see
+# `ostree container commit`'s docs), so a remote registered during the build
+# lives in /var/lib/flatpak/repo/config and is silently discarded, never
+# reaching the deployed system. (Confirmed via a real-world migration where
+# Flathub wasn't actually enabled after deploying.) flathub-setup.service
+# below runs `flatpak remote-add` at first boot instead, when /var is real.
 
 ### Firewalld default zone #####################################################
 # firewall-offline-cmd edits the on-disk zone config directly (no running
@@ -106,9 +122,10 @@ flatpak remote-add --system --if-not-exists flathub \
 firewall-offline-cmd --set-default-zone=FedoraWorkstation
 
 ### Helper scripts and services ###############################################
-chmod 0755 /usr/libexec/brew-setup.sh
+chmod 0755 /usr/libexec/brew-setup.sh /usr/libexec/flathub-setup.sh
 systemctl enable \
     brew-setup.service \
+    flathub-setup.service \
     oddjobd.service \
     firewalld.service \
     avahi-daemon.service \

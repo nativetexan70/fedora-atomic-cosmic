@@ -11,7 +11,9 @@ based on the official **Fedora COSMIC Atomic** desktop, with:
   `/var/home/linuxbrew` on first boot; `/etc/profile.d/brew.sh` (and a fish
   snippet) put `brew` on every user's PATH
 - **Distrobox** — available to all users for mutable container distros
-- **Flathub** — configured as a system-wide flatpak remote at image build time
+- **Flathub** — configured as a system-wide flatpak remote on first boot (must run at first
+  boot, not build time: `/var`, where flatpak's system installation lives, isn't part of the
+  ostree commit)
 - **RPM Fusion (free + nonfree)** — full `ffmpeg` and hardware video
   acceleration (`mesa-*-freeworld`) instead of the patent-limited defaults
 - **Intel integrated graphics** — `intel-media-driver` (Broadwell/2014+) and
@@ -57,14 +59,19 @@ then reboot.
 
 ## Joining a FreeIPA domain
 
-After deploying, enroll the machine into your IPA realm:
+After deploying, enroll the machine into your IPA realm (or run `ujust ipa-enroll`, which
+does the same thing interactively and also restarts the affected services):
 
 ```bash
 sudo ipa-client-install --mkhomedir
+sudo systemctl restart sssd oddjobd certmonger
 ```
 
-`oddjobd` is already enabled, so home directories are created automatically on
-first login for IPA users.
+`oddjobd` is already enabled, so home directories are created automatically on first login
+for IPA users. `ipa-client-install` rewrites `sssd.conf`/`krb5.conf`/PAM+NSS config, but
+already-running services have the old config cached in memory — restarting them usually
+avoids needing a reboot before authentication works, though a reboot may still be required
+in some cases.
 
 ## Homebrew notes
 
@@ -82,7 +89,7 @@ Run `ujust --choose` for an interactive picker, or `ujust <recipe>` directly:
 | `update` | Updates the base image, Flatpaks, and Homebrew packages in one shot |
 | `rebase-helper` | Interactively rebase to a different tag of this image |
 | `clean-system` | Removes old rpm-ostree deployments, unused podman images, and unused flatpak runtimes |
-| `ipa-enroll` | Prompts for an IPA domain/server and runs `ipa-client-install --mkhomedir` |
+| `ipa-enroll` | Prompts for an IPA domain/server, runs `ipa-client-install --mkhomedir`, and restarts the affected services |
 | `ipa-unenroll` | Removes this machine from its FreeIPA domain |
 | `brew-status` | Shows whether Homebrew has been unpacked and who owns it |
 | `brew-resync` | Re-runs the Homebrew first-boot unpack (e.g. after a home directory wipe) |
@@ -96,6 +103,67 @@ Run `ujust --choose` for an interactive picker, or `ujust <recipe>` directly:
 ```bash
 podman build -t fedora-atomic-cosmic .
 ```
+
+## Building an ISO installer
+
+For a bootable installer ISO (e.g. bare-metal installs), use
+[`bootc-image-builder`](https://github.com/osbuild/bootc-image-builder). It runs privileged
+since it partitions/formats a disk image.
+
+```bash
+mkdir -p output
+sudo podman run --rm -it --privileged --pull=newer \
+    --security-opt label=type:unconfined_t \
+    -v ./output:/output \
+    -v /var/lib/containers/storage:/var/lib/containers/storage \
+    quay.io/centos-bootc/bootc-image-builder:latest \
+    --type iso \
+    --rootfs ext4 \
+    ghcr.io/nativetexan70/fedora-atomic-cosmic:latest
+```
+
+The resulting `install.iso` lands in `./output/bootiso/`. `--rootfs ext4` is required since
+this image doesn't set a default root filesystem.
+
+To build against a local `podman build` image instead of the published GHCR one, reference it
+with the `containers-storage:` prefix instead of the registry path:
+
+```bash
+    containers-storage:localhost/fedora-atomic-cosmic
+```
+
+### Unattended installs
+
+For an unattended installer (disk partitioning, network config, etc. baked in), use
+`--type anaconda-iso` with a kickstart override in `config.toml`:
+
+```bash
+sudo podman run --rm -it --privileged --pull=newer \
+    --security-opt label=type:unconfined_t \
+    -v ./config.toml:/config.toml:ro \
+    -v ./output:/output \
+    -v /var/lib/containers/storage:/var/lib/containers/storage \
+    quay.io/centos-bootc/bootc-image-builder:latest \
+    --type anaconda-iso \
+    --rootfs ext4 \
+    ghcr.io/nativetexan70/fedora-atomic-cosmic:latest
+```
+
+```toml
+# config.toml
+[customizations.installer.kickstart]
+contents = """
+text --non-interactive
+zerombr
+clearpart --all --initlabel --disklabel=gpt
+autopart --noswap --type=lvm
+network --bootproto=dhcp --device=link --activate --onboot=on
+"""
+```
+
+`bootc-image-builder` appends the container install step to the kickstart automatically —
+don't duplicate it. On SELinux-enforcing hosts, the `osbuild-selinux` package must be
+installed.
 
 ## Layout
 
