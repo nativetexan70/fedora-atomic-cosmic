@@ -1,4 +1,4 @@
-# fedora-atomic-cosmic
+# Fedora Atomic with Cosmic Desktop
 
 A custom [Fedora Atomic (bootc)](https://docs.fedoraproject.org/en-US/bootc/) image
 based on the official **Fedora COSMIC Atomic** desktop, with:
