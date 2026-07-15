@@ -32,6 +32,9 @@ based on the official **Fedora COSMIC Atomic** desktop, with:
 - **Decorative terminal** — Starship prompt, `eza`/`bat` as `ls`/`cat`
   replacements, and a `fastfetch` banner on shell open, wired up for every
   user (bash, zsh, and fish) in interactive shells only
+- **`ujust` recipes** — `ujust`/`ugum` (from the
+  [`ublue-os/packages`](https://copr.fedorainfracloud.org/coprs/ublue-os/packages/)
+  COPR) plus a custom recipe set for this image (see below)
 
 The image is built weekly (and on every push to `main`) by GitHub Actions and
 published to GHCR.
@@ -69,6 +72,24 @@ Homebrew's prefix (`/var/home/linuxbrew/.linuxbrew`) is owned by the primary
 user (UID 1000), who can `brew install` packages. All other users get the
 installed binaries on their PATH automatically. To let another user manage
 packages too, grant them write access to the prefix (e.g. via a shared group).
+
+## `ujust` recipes
+
+Run `ujust --choose` for an interactive picker, or `ujust <recipe>` directly:
+
+| Recipe | Description |
+|---|---|
+| `update` | Updates the base image, Flatpaks, and Homebrew packages in one shot |
+| `rebase-helper` | Interactively rebase to a different tag of this image |
+| `clean-system` | Removes old rpm-ostree deployments, unused podman images, and unused flatpak runtimes |
+| `ipa-enroll` | Prompts for an IPA domain/server and runs `ipa-client-install --mkhomedir` |
+| `ipa-unenroll` | Removes this machine from its FreeIPA domain |
+| `brew-status` | Shows whether Homebrew has been unpacked and who owns it |
+| `brew-resync` | Re-runs the Homebrew first-boot unpack (e.g. after a home directory wipe) |
+| `distrobox-create NAME IMAGE` | Creates and enters a distrobox container |
+| `toggle-tailscale` | Enables/disables the Tailscale VPN mesh client |
+| `verify-hwaccel` | Runs `vainfo` to check Intel VA-API hardware video acceleration |
+| `toggle-terminal-bling` | Turns the default Starship/eza/bat/fastfetch terminal setup on or off |
 
 ## Building locally
 

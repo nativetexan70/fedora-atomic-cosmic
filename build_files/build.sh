@@ -20,6 +20,12 @@ dnf -y install \
 curl -fsSL https://pkgs.tailscale.com/stable/fedora/tailscale.repo \
     -o /etc/yum.repos.d/tailscale.repo
 
+### Universal Blue packages repo ################################################
+# Provides ujust/ugum and the composable /usr/share/ublue-os/just/*.just
+# recipe mechanism (our own recipes live in 60-custom.just below).
+dnf -y install dnf5-plugins
+dnf -y copr enable ublue-os/packages
+
 ### Layered packages ##########################################################
 # - freeipa-client / krb5-workstation / oddjob-mkhomedir: FreeIPA enrollment
 #   support (run `ipa-client-install --mkhomedir` on a deployed machine)
@@ -37,8 +43,11 @@ curl -fsSL https://pkgs.tailscale.com/stable/fedora/tailscale.repo \
 # - starship / eza / bat / fastfetch: decorative terminal setup (prompt,
 #   `ls`/`cat` replacements, startup system-info banner); wired up for every
 #   user via /etc/profile.d and the fish vendor conf dir
+# - ublue-os-just: ujust/ugum plus the recipe-import mechanism used by
+#   system_files/usr/share/ublue-os/just/60-custom.just
 dnf -y install --allowerasing \
     distrobox \
+    ublue-os-just \
     freeipa-client \
     krb5-workstation \
     oddjob-mkhomedir \
