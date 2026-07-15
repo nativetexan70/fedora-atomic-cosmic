@@ -9,18 +9,73 @@ set -euxo pipefail
 # don't choke on a dangling symlink during the build.
 mkdir -p /var/roothome
 
+### RPM Fusion ##################################################################
+# Free + nonfree repos for patent-encumbered codecs and hardware video accel
+# drivers - the single most common manual step on any Fedora desktop.
+dnf -y install \
+    "https://mirrors.rpmfusion.org/free/fedora/rpmfusion-free-release-$(rpm -E %fedora).noarch.rpm" \
+    "https://mirrors.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-$(rpm -E %fedora).noarch.rpm"
+
+### Tailscale repo ##############################################################
+curl -fsSL https://pkgs.tailscale.com/stable/fedora/tailscale.repo \
+    -o /etc/yum.repos.d/tailscale.repo
+
+### COPR repos ###################################################################
+# - ublue-os/packages: ujust/ugum and the composable
+#   /usr/share/ublue-os/just/*.just recipe mechanism (our recipes live in
+#   60-custom.just below)
+# - atim/starship: starship was removed from Fedora's official repos at F37,
+#   this is the community-maintained COPR build used ever since
+dnf -y install dnf5-plugins
+dnf -y copr enable ublue-os/packages
+dnf -y copr enable atim/starship
+
 ### Layered packages ##########################################################
 # - freeipa-client / krb5-workstation / oddjob-mkhomedir: FreeIPA enrollment
 #   support (run `ipa-client-install --mkhomedir` on a deployed machine)
 # - distrobox: mutable container distros for every user
 # - git-core / zstd: needed to install and package Homebrew below
-dnf -y install \
+# - ffmpeg / mesa-va-drivers-freeworld: full RPM Fusion codec + hardware
+#   video accel (replaces the patent-limited *-free builds shipped by
+#   default; there's no separate freeworld VDPAU package on Fedora 44)
+# - intel-media-driver / libva-intel-driver / libva-utils: VA-API (DRM)
+#   hardware video decode/encode for Intel integrated graphics - iHD driver
+#   for Broadwell (2014) and newer, legacy i965 driver for older chips
+# - firewalld / avahi / nss-mdns / cups*: LAN discovery and network printing
+# - tailscale: VPN mesh client (service enabled below; run `tailscale up`
+#   after first boot to authenticate against your tailnet)
+# - jetbrains-mono-fonts / fira-code-fonts: monospace coding fonts
+# - starship / eza / bat / fastfetch: decorative terminal setup (prompt,
+#   `ls`/`cat` replacements, startup system-info banner); wired up for every
+#   user via /etc/profile.d and the fish vendor conf dir
+# - ublue-os-just: ujust/ugum plus the recipe-import mechanism used by
+#   system_files/usr/share/ublue-os/just/60-custom.just
+dnf -y install --allowerasing \
     distrobox \
+    ublue-os-just \
     freeipa-client \
     krb5-workstation \
     oddjob-mkhomedir \
     git-core \
-    zstd
+    zstd \
+    ffmpeg \
+    mesa-va-drivers-freeworld \
+    intel-media-driver \
+    libva-intel-driver \
+    libva-utils \
+    firewalld \
+    avahi \
+    nss-mdns \
+    cups \
+    cups-filters \
+    cups-browsed \
+    tailscale \
+    jetbrains-mono-fonts \
+    fira-code-fonts \
+    starship \
+    eza \
+    bat \
+    fastfetch
 
 ### Homebrew ##################################################################
 # Homebrew cannot live in the immutable /usr tree, so install it at build
@@ -36,12 +91,31 @@ NONINTERACTIVE=1 /tmp/brew-install.sh
 tar --zstd -cf /usr/share/homebrew.tar.zst -C /var/home linuxbrew
 rm -rf /.dockerenv /tmp/brew-install.sh /var/home/linuxbrew
 
+### Flatpak ####################################################################
+# /etc is part of the ostree commit (and 3-way merged on every deployment), so
+# a remote added here is present for every user on first login with no
+# first-boot service needed.
+flatpak remote-add --system --if-not-exists flathub \
+    https://dl.flathub.org/repo/flathub.flatpakrepo
+
+### Firewalld default zone #####################################################
+# firewall-offline-cmd edits the on-disk zone config directly (no running
+# daemon needed during the build). FedoraWorkstation is the zone Fedora
+# Workstation itself uses: it permits mDNS/DNS-SD, SMB client, and SSH -
+# the profile an actual desktop machine wants.
+firewall-offline-cmd --set-default-zone=FedoraWorkstation
+
 ### Helper scripts and services ###############################################
-chmod 0755 /usr/libexec/brew-setup.sh /usr/libexec/flathub-setup.sh
+chmod 0755 /usr/libexec/brew-setup.sh
 systemctl enable \
     brew-setup.service \
-    flathub-setup.service \
-    oddjobd.service
+    oddjobd.service \
+    firewalld.service \
+    avahi-daemon.service \
+    cups.service \
+    cups-browsed.service \
+    tailscaled.service \
+    rpm-ostreed-automatic.timer
 
 ### Cleanup ###################################################################
 dnf clean all
