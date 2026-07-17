@@ -25,13 +25,13 @@ The image is built weekly (and on every push to `main`) by GitHub Actions and pu
 From any existing Fedora Atomic or bootc system:
 
 ```bash
-sudo bootc switch ghcr.io/nativetexan70/fedora-atomic-cosmic:latest
+sudo bootc switch ghcr.io/personalcyber/fedora-atomic-cosmic:latest
 ```
 
 or with rpm-ostree:
 
 ```bash
-sudo rpm-ostree rebase ostree-unverified-registry:ghcr.io/nativetexan70/fedora-atomic-cosmic:latest
+sudo rpm-ostree rebase ostree-unverified-registry:ghcr.io/personalcyber/fedora-atomic-cosmic:latest
 ```
 
 then reboot.
